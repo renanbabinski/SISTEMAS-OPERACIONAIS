@@ -264,7 +264,7 @@ wait(void)
         continue;
       havekids = 1;
       if(p->state == ZOMBIE){
-        cprintf("O PROCESSO ACABOU - PID: %d\n", p->pid);   //#CHANGED
+        cprintf("# O PROCESSO ACABOU # - PID: %d\n", p->pid);   //#CHANGED
         cprintf("BILHETES DO PROCESSO: %d\n", p->tickets);
         // Found one.
         pid = p->pid;
