@@ -178,7 +178,7 @@ growproc(int n)
 // Sets up stack to return as if from system call.
 // Caller must set state of returned proc to RUNNABLE.
 int
-fork(void)
+fork(int numtickets)
 {
   int i, pid;
   struct proc *np;
@@ -211,6 +211,9 @@ fork(void)
   safestrcpy(np->name, curproc->name, sizeof(curproc->name));
 
   pid = np->pid;
+
+  cprintf("PROCESSO CRIADO - PID: %d BILHETES: %d\n", np->pid, np->tickets); //#CHANGED
+
 
   acquire(&ptable.lock);
 
@@ -285,6 +288,8 @@ wait(void)
         continue;
       havekids = 1;
       if(p->state == ZOMBIE){
+        cprintf("# O PROCESSO ACABOU # - PID: %d\n", p->pid);   //#CHANGED
+        cprintf("BILHETES DO PROCESSO: %d\n", p->tickets);
         // Found one.
         pid = p->pid;
         kfree(p->kstack);
@@ -339,6 +344,8 @@ scheduler(void)
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
+      cprintf("PROCESSO %d ESTÁ COM A CPU AGORA.\n", p->pid);
+
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
