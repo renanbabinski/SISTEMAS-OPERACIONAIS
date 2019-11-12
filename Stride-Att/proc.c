@@ -138,6 +138,8 @@ userinit(void)
   p->tf->eflags = FL_IF;
   p->tf->esp = PGSIZE;
   p->tf->eip = 0;  // beginning of initcode.S
+  p->tickets = MAX_TICKETS;  //initcode recebe o numero máximo de bilhetes
+  p->stride = 0;
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
@@ -200,6 +202,21 @@ fork(int numtickets)
   np->parent = curproc;
   *np->tf = *curproc->tf;
 
+  np->stride = 0; //inicia o processo com passada 0
+
+
+  //antes de retornar, devemos setar os bilhetes de cada processo   #CHANGED  ESTE BLOCO
+
+  if(numtickets != 0){     //se o numero de bilhetes for diferente de 0
+    if(numtickets > MAX_TICKETS){
+      np->tickets = MAX_TICKETS; //se o numero de bilhetes ganho é maior que o numero máximo de bilhetes, então o processo ganha o numero máximo
+    }else{
+      np->tickets = numtickets;       //ou o numero ganho
+    }
+  }else{
+    np->tickets=INITIAL_TICKETS;       //se o numero de bilhetes for 0, então ganhará os bilhetes iniciais
+  }
+
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
 
@@ -212,7 +229,7 @@ fork(int numtickets)
 
   pid = np->pid;
 
-  cprintf("PROCESSO CRIADO - PID: %d\n", np->pid); //#CHANGED
+  cprintf("PROCESSO CRIADO - PID: %d BILHETES: %d\n", np->pid, np->tickets); 
 
 
   acquire(&ptable.lock);
@@ -289,6 +306,7 @@ wait(void)
       havekids = 1;
       if(p->state == ZOMBIE){
         cprintf("# O PROCESSO ACABOU # - PID: %d\n", p->pid);   //#CHANGED
+        cprintf("BILHETES DO PROCESSO: %d\n", p->tickets);
         // Found one.
         pid = p->pid;
         kfree(p->kstack);
@@ -315,6 +333,41 @@ wait(void)
   }
 }
 
+// ----------------- TOTAL SORTEADOS ------------------------
+int lotteryTotal(void){
+  struct proc *p;
+  int total_tickets=0;
+
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state==RUNNABLE){
+      total_tickets+=p->tickets;
+    }
+  }
+  return total_tickets;
+}
+
+int smallest_step(void){
+  struct proc *p, *menor;
+  
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){ //Encontra um processo RUNNABLE para comparar com os outros
+    if(p->state == RUNNABLE)
+      menor = p;
+    break;
+  }
+
+
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){  //Encontra o processo RUNNABLE com menor passo
+    if(p->stride <= menor->stride && p->state == RUNNABLE){
+      if(p->stride == menor->stride){
+        if(p->pid > menor->pid)
+          menor = p;
+      }
+      menor = p;
+    }
+  }
+  return menor->pid;
+}
+
 //PAGEBREAK: 42
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
@@ -329,6 +382,9 @@ scheduler(void)
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
+  int passo;
+  int total_tickets;
+  int process_id;
   
   for(;;){
     // Enable interrupts on this processor.
@@ -336,26 +392,41 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
 
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
-      cprintf("PROCESSO %d ESTÁ COM A CPU AGORA.\n", p->pid);
+    total_tickets = lotteryTotal();     //retorna o total de bilhetes dos processos RUNNABLE(prontos)
+    process_id = smallest_step();    //retorna o processo com menor passada
 
-      c->proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
 
-      swtch(&(c->scheduler), p->context);
-      switchkvm();
+    if(total_tickets > 0){
 
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      c->proc = 0;
+
+      cprintf("ESCOLHIDO : %d\n", process_id);
+
+      for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+        //Itera sobre a tabela de processos biscando o processo para rodar
+        if(p->pid != process_id)
+          continue;
+
+        // Switch to chosen process.  It is the process's job
+        // to release ptable.lock and then reacquire it
+        // before jumping back to us.
+        cprintf("PROCESSO %d ESTÁ COM A CPU AGORA.\n", p->pid);
+        passo = 10000 / p->tickets;
+        cprintf("PASSO: %d\n", passo);
+
+        c->proc = p;
+        switchuvm(p);
+        p->state = RUNNING;
+
+        swtch(&(c->scheduler), p->context);
+        switchkvm();
+
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        c->proc = 0;
+      }
     }
+
     release(&ptable.lock);
 
   }

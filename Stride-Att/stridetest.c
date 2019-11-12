@@ -4,20 +4,21 @@
 #include "user.h"
 
 
-#define LOOP 2000
+#define LOOP 1000000
 #define nprocs 3
 
 
 int main(void){
-	int pid;
 
-if((pid=fork() ) <= 0){
-  for(int i=0; i<LOOP; i++);
-}else{
-  fork();
-  fork();
-  fork();
-}
+	for(int i=0; i<nprocs; i++){
+		if(fork((i+1)*100) == 0){
+			for(int j=0; j<LOOP; j++);
+			exit();
+		}
+	}
+	for(int x=0; x<nprocs; x++){
+		wait();
+	}
 
 return 0;
 }

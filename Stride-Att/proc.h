@@ -1,4 +1,6 @@
 // Per-CPU state
+#define MAX_TICKETS 10000
+#define INITIAL_TICKETS 75
 struct cpu {
   uchar apicid;                // Local APIC ID
   struct context *scheduler;   // swtch() here to enter scheduler
@@ -49,6 +51,8 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  int tickets;				   // Bilhetes do processo
+  int stride;				   // Passada do processo
 };
 
 // Process memory is laid out contiguously, low addresses first:
