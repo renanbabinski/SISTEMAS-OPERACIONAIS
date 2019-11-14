@@ -12,7 +12,10 @@ int main(void){
 
 	for(int i=0; i<nprocs; i++){
 		if(fork((i+1)*100) == 0){
-			for(int j=0; j<LOOP; j++);
+			for(int j=0; j<LOOP; j++){
+				int a = 0, b = 10;
+				a += b;
+			}
 			exit();
 		}
 	}
