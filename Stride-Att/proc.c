@@ -412,8 +412,8 @@ scheduler(void)
         // before jumping back to us.
         cprintf("PROCESSO %d ESTÁ COM A CPU AGORA.\n", p->pid);
         passo = 10000 / p->tickets;
-        cprintf("PASSO: %d\n", passo);
-
+        cprintf("PASSO: %d\n", p->stride);
+        p->stride += passo;
         c->proc = p;
         switchuvm(p);
         p->state = RUNNING;
