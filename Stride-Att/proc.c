@@ -138,8 +138,8 @@ userinit(void)
   p->tf->eflags = FL_IF;
   p->tf->esp = PGSIZE;
   p->tf->eip = 0;  // beginning of initcode.S
-  p->tickets = MAX_TICKETS;  //initcode recebe o numero máximo de bilhetes
-  p->stride = 0;
+  p->tickets = INITIAL_TICKETS;  //initcode recebe o numero inicial de bilhetes
+  p->stride = 0;                 //inicia com passada 0 como os outro processos
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
@@ -180,7 +180,7 @@ growproc(int n)
 // Sets up stack to return as if from system call.
 // Caller must set state of returned proc to RUNNABLE.
 int
-fork(int numtickets)
+fork(int numtickets)    //fork agora recebe um parametro inteiro que é a quantidade de bilhetes que o processo irá receber
 {
   int i, pid;
   struct proc *np;
@@ -202,19 +202,19 @@ fork(int numtickets)
   np->parent = curproc;
   *np->tf = *curproc->tf;
 
-  np->stride = 0; //inicia o processo com passada 0
+  np->stride = 0;   //inicia o processo com passada 0
 
 
   //antes de retornar, devemos setar os bilhetes de cada processo   #CHANGED  ESTE BLOCO
 
-  if(numtickets != 0){     //se o numero de bilhetes for diferente de 0
+  if(numtickets != 0){                //se o numero de bilhetes for diferente de 0
     if(numtickets > MAX_TICKETS){
-      np->tickets = MAX_TICKETS; //se o numero de bilhetes ganho é maior que o numero máximo de bilhetes, então o processo ganha o numero máximo
+      np->tickets = MAX_TICKETS;      //se o numero de bilhetes ganho é maior que o numero máximo de bilhetes, então o processo ganha o numero máximo
     }else{
       np->tickets = numtickets;       //ou o numero ganho
     }
   }else{
-    np->tickets=INITIAL_TICKETS;       //se o numero de bilhetes for 0, então ganhará os bilhetes iniciais
+    np->tickets=INITIAL_TICKETS;      //se o numero de bilhetes for 0, então ganhará os bilhetes iniciais
   }
 
   // Clear %eax so that fork returns 0 in the child.
@@ -229,7 +229,9 @@ fork(int numtickets)
 
   pid = np->pid;
 
-  cprintf("PROCESSO CRIADO - PID: %d BILHETES: %d\n", np->pid, np->tickets); 
+  if(PRINT_CREATED_PROCESS == 1){
+    cprintf("PROCESSO CRIADO - PID: %d BILHETES: %d\n", np->pid, np->tickets);
+  }
 
 
   acquire(&ptable.lock);
@@ -305,7 +307,7 @@ wait(void)
         continue;
       havekids = 1;
       if(p->state == ZOMBIE){
-        cprintf("# O PROCESSO ACABOU # - PID: %d\n", p->pid);   //#CHANGED
+        cprintf("# O PROCESSO ACABOU # - PID: %d\n", p->pid);   
         cprintf("BILHETES DO PROCESSO: %d\n", p->tickets);
         // Found one.
         pid = p->pid;
@@ -333,7 +335,7 @@ wait(void)
   }
 }
 
-// ----------------- TOTAL SORTEADOS ------------------------
+// ----------------- TOTAL BILHETES ------------------------
 int lotteryTotal(void){
   struct proc *p;
   int total_tickets=0;
@@ -356,10 +358,10 @@ int smallest_step(void){
   }
 
 
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){  //Encontra o processo RUNNABLE com menor passo
-    if(p->stride <= menor->stride && p->state == RUNNABLE){
-      if(p->stride == menor->stride){
-        if(p->pid > menor->pid)
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){      //Encontra o processo RUNNABLE com menor passo iterando a tabela de processos
+    if(p->stride <= menor->stride && p->state == RUNNABLE){  //se o passo do processo atual for menor que o passo do processo anterior e também esteja em estado pronto...
+      if(p->stride == menor->stride){      // se o passo dos processos comparados forem iguais, o processo com maior PID é selecionado
+        if(p->pid > menor->pid)           
           menor = p;
       }
       menor = p;
@@ -394,25 +396,29 @@ scheduler(void)
     acquire(&ptable.lock);
 
     total_tickets = lotteryTotal();     //retorna o total de bilhetes dos processos RUNNABLE(prontos)
-    process_id = smallest_step();    //retorna o processo com menor passada
+    process_id = smallest_step();       //retorna o processo com menor passada
 
 
-    if(total_tickets > 0){
+    if(total_tickets > 0){              //aqui é verificado se existem processos prontos para serem escalonados
 
-
+      if(CHOSEN == 1){
       cprintf("ESCOLHIDO : %d\n", process_id);
+      }
 
-      for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-        //Itera sobre a tabela de processos biscando o processo para rodar
+      for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){ //Itera sobre a tabela de processos buscando o processo escolhido para rodar
         if(p->pid != process_id)
           continue;
 
         // Switch to chosen process.  It is the process's job
         // to release ptable.lock and then reacquire it
         // before jumping back to us.
-        cprintf("PROCESSO %d ESTÁ COM A CPU AGORA.\n", p->pid);
+        if(CURRENT_PROCESS == 1){
+          cprintf("PROCESSO %d ESTÁ COM A CPU AGORA.\n", p->pid);
+        }
         passo = 10000 / p->tickets;
-        cprintf("PASSO: %d\n", p->stride);
+        if(STEP_OF_PROCESS == 1){
+          cprintf("PASSO: %d\n", p->stride);
+        }
         p->stride += passo;
         c->proc = p;
         switchuvm(p);
