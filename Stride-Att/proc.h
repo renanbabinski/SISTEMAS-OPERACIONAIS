@@ -1,6 +1,6 @@
 // Per-CPU state
 #define MAX_TICKETS 10000
-#define INITIAL_TICKETS 75
+#define INITIAL_TICKETS 1
 struct cpu {
   uchar apicid;                // Local APIC ID
   struct context *scheduler;   // swtch() here to enter scheduler
