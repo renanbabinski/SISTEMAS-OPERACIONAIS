@@ -1,6 +1,10 @@
 // Per-CPU state
 #define MAX_TICKETS 10000
-#define INITIAL_TICKETS 1
+#define INITIAL_TICKETS 75
+#define PRINT_CREATED_PROCESS 0  //Se igual a 1, imprime na tela sempre que um processo for criado
+#define CURRENT_PROCESS 0		 //Se igual a 1, imprime na tela o processo que esta com a CPU
+#define STEP_OF_PROCESS 0		 //Se igual a 1, mostra a passada atual do processo que está executando
+#define CHOSEN 0      			 //Se igual a 1, mostra o prcesso escolhido pelo escalonador
 struct cpu {
   uchar apicid;                // Local APIC ID
   struct context *scheduler;   // swtch() here to enter scheduler
